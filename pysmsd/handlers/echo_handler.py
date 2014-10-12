@@ -41,6 +41,7 @@ class Handler(BaseSMSHandler):
     def handle(self, db, id):
         if self.system_client_id is not None:
             m = db.get_in_message(id)
-            db.insert_out_message(dict(Number=m['Number'], Text=m['Rest']),
-                                  self.system_client_id)
+            if m['Keyword'].lower() == 'echo':
+                db.insert_out_message(dict(Number=m['Number'], Text=m['Rest']),
+                                      self.system_client_id)
 

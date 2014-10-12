@@ -35,5 +35,5 @@ from pysmsd.handlers import BaseSMSHandler
 
 class Handler(BaseSMSHandler):
     def handle(self, db, id):
-        m = db.get_in_message(id)
-        logging.info(m)
+        message = db.get_in_message(id)
+        logging.info("Print Handler: [%s]" % message['Text'])

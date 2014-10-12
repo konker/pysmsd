@@ -8,3 +8,4 @@ pysmsd/data/pysmsd.db
 pysmsd/http/server.crt
 pysmsd/http/server.key
 pysmsd/handlers/enabled
+*.log

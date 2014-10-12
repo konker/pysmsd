@@ -35,8 +35,6 @@ from pysmsd.db import db
 
 PACKAGE = 'pysmsd.handlers.enabled'
 
-#import pysmsd.handlers.enabled.print_handler
-
 
 class DispatcherException(Exception):
     pass
@@ -49,14 +47,14 @@ class Dispatcher(object):
         # read in available handlers
         self.handlers = {}
 
-        print os.path.join(os.path.dirname(__file__), '..', 'handlers', 'enabled')
+        logging.info(os.path.join(os.path.dirname(__file__), '..', 'handlers', 'enabled'))
         module = None
         for py in os.listdir(os.path.join(os.path.dirname(__file__), '..', 'handlers', 'enabled')):
             if py[-3:] != '.py' or py == '__init__.py':
                 continue
 
             module = "%s.%s" % (PACKAGE, py[:-3])
-            print "Found handler: %s" % module
+            logging.info("Found handler: %s" % module)
             cls = 'Handler'
             try:
                 __import__(module, locals(), globals())
@@ -80,28 +78,23 @@ class Dispatcher(object):
     def in_message(self, id):
         for module,handler in self.handlers.items():
             logging.debug("dispatch to module %s" % module)
-            m = getattr(handler, 'handle')
-            if m:
-                m(self.db, id)
-            else:
-                logging.error('Handler %s has not handle() method' % module)
-                raise DispatcherException('Handler %s has not handle() method' % module)
-            """
-            try:
-                m = getattr(handler, 'handle')
-                if m:
-                    try:
-                        m(self.db, id)
-                    except:
-                        logging.error('Error invoking handler %s' % module)
-                        raise DispatcherException('Error invoking handler %s' % module)
-                else:
-                    logging.error('Handler %s has not handle() method' % module)
-                    raise DispatcherException('Handler %s has not handle() method' % module)
 
+            try:
+                handle_method = getattr(handler, 'handle')
+                if handle_method:
+                    try:
+                        handle_method(self.db, id)
+                    except Exception as ex:
+                        logging.error('Error invoking handler %s' % module)
+                        logging.exception(ex)
+                        #[XXX: don't stop everything because one dispatcher fails]
+                        #raise DispatcherException('Error invoking handler %s' % module)
+                else:
+                    logging.error('Handler %s has no handle() method' % module)
+                    #[XXX: don't stop everything because one dispatcher fails]
+                    #raise DispatcherException('Handler %s has not handle() method' % module)
             except:
                 logging.error('Could not invoke handler %s' % module)
-                raise DispatcherException('Could not invoke handler %s' % module)
-            """
-
+                #[XXX: don't stop everything because one dispatcher fails]
+                #raise DispatcherException('Could not invoke handler %s' % module)
 

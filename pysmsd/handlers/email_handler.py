@@ -39,15 +39,15 @@ from email.mime.text import MIMEText
 class Handler(BaseSMSHandler):
     def handle(self, db, id):
         m = db.get_in_message(id)
-        logging.debug("in message: %s" % m['keyword'])
-        if self.is_email(m['keyword']):
+        logging.debug("in message: %s" % m['Keyword'])
+        if self.is_email(m['Keyword']):
             frm = 'turunen@prometheus.hiit.fi'
-            to = m['keyword']
+            to = m['Keyword']
 
             logging.debug("Sending email to %s" % to)
-            msg = MIMEText(m['rest'])
+            msg = MIMEText(m['Rest'])
 
-            msg['Subject'] = 'Email from smsd: %s' % m['rest']
+            msg['Subject'] = 'Email from smsd: %s' % m['Rest']
             msg['From'] = frm
             msg['To'] = to
 

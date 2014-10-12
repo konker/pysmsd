@@ -78,10 +78,11 @@ class Daemon(object):
                 self.process_out_messages()
 
                 time.sleep(self.poll_delay_secs)
+
         except KeyboardInterrupt:
             self.stop()
+
         except Exception as ex:
-            #[TODO: logging]
             logging.exception(ex)
             self.stop()
 
@@ -152,6 +153,7 @@ class Daemon(object):
         # retrieve and format the message
         message = self.state_machine.GetSMS(self.inboxes[memory_type], i)
         self.state_machine.DeleteSMS(self.inboxes[memory_type], i)
+
         message = self.format_message(message)
         logging.debug(message)
 
@@ -161,7 +163,7 @@ class Daemon(object):
         # dispatch to any loaded handlers
         try:
             self.dispatcher.in_message(id)
-        except DispatcherException as e:
+        except DispatcherException:
             logging.exception("Dispatcher failed")
 
 
@@ -207,7 +209,6 @@ class Daemon(object):
         except KeyboardInterrupt:
             self.stop()
         except Exception as ex:
-            #[TODO: logging]
             logging.exception(ex)
             self.stop()
 
@@ -223,8 +224,7 @@ class Daemon(object):
 
 
     def stop(self):
-        #[TODO: clean up code here? close db etc?]
-        self.db.close()
         logging.debug("Stopping")
+        self.db.close()
         exit(-1)
 

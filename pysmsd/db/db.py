@@ -61,9 +61,11 @@ class Db:
 
     def close(self):
         if self.cursor is not None:
+            logging.info("Close db cursor")
             self.cursor.close()
 
         if self.connection is not None:
+            logging.info("Close db connection")
             self.connection.close()
 
 
