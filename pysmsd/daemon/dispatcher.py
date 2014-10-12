@@ -31,6 +31,7 @@
 import os
 import sys
 import logging
+from pysmsd.db import db
 
 PACKAGE = 'pysmsd.handlers.enabled'
 
@@ -40,9 +41,10 @@ PACKAGE = 'pysmsd.handlers.enabled'
 class DispatcherException(Exception):
     pass
 
+
 class Dispatcher(object):
     def __init__(self, db_path):
-        self.db_path = db_path
+        self.db = db.Db(db_path)
 
         # read in available handlers
         self.handlers = {}
@@ -64,7 +66,7 @@ class Dispatcher(object):
 
             if sys.modules.has_key(module):
                 if hasattr(sys.modules[module], cls):
-                    self.handlers[module] = getattr(sys.modules[module], cls)()
+                    self.handlers[module] = getattr(sys.modules[module], cls)(self.db)
                 else:
                     logging.error('Module has no class %s' % cls)
                     raise DispatcherException('Module has no class %s' % cls)
@@ -78,11 +80,18 @@ class Dispatcher(object):
     def in_message(self, id):
         for module,handler in self.handlers.items():
             logging.debug("dispatch to module %s" % module)
+            m = getattr(handler, 'handle')
+            if m:
+                m(self.db, id)
+            else:
+                logging.error('Handler %s has not handle() method' % module)
+                raise DispatcherException('Handler %s has not handle() method' % module)
+            """
             try:
                 m = getattr(handler, 'handle')
                 if m:
                     try:
-                        m(self.db_path, id)
+                        m(self.db, id)
                     except:
                         logging.error('Error invoking handler %s' % module)
                         raise DispatcherException('Error invoking handler %s' % module)
@@ -93,5 +102,6 @@ class Dispatcher(object):
             except:
                 logging.error('Could not invoke handler %s' % module)
                 raise DispatcherException('Could not invoke handler %s' % module)
+            """
 
 

@@ -37,11 +37,12 @@ from webob.exc import HTTPMovedPermanently, HTTPBadRequest
 from pysmsd.http.controllers import BaseController
 from pysmsd.db import db
 
+
 class Index(BaseController):
     def index(self, req):
-    	view = self.load_view('index.html')
-    	if view:
-	    return view.render()
-    	else:
-	    return None
+        view = self.load_view('index.html')
+        if view:
+            return view.render()
+        else:
+            return None
 

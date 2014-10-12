@@ -33,6 +33,22 @@ import time
 from calendar import timegm
 from math import floor, ceil
 
+
+
+class Singleton:
+    """
+    http://www.mindviewinc.com/Books/Python3Patterns/Index.php
+    """
+    def __init__(self, klass):
+        self.klass = klass
+        self.instance = None
+
+    def __call__(self, *args, **kwds):
+        if self.instance == None:
+            self.instance = self.klass(*args, **kwds)
+        return self.instance
+
+
 def utcisoptime(s):
     '''Parse a string representing a UTC datetime according to ISO 8601 format.
     Milliseconds are ignored.
@@ -63,10 +79,10 @@ def prettydate(s):
         var date = new Date((time || "").replace(/-/g,"/").replace(/[TZ]/g," ")),
             diff = (((new Date()).getTime() - date.getTime()) / 1000),
             day_diff = Math.floor(diff / 86400);
-                
+
         if ( isNaN(day_diff) || day_diff < 0 || day_diff >= 31 )
             return;
-                
+
         return day_diff == 0 && (
                 diff < 60 && "just now" ||
                 diff < 120 && "1 minute ago" ||
@@ -83,7 +99,7 @@ def prettydate(s):
 
     # difference in seconds betwen given time and now
     diff = (time.time() - timegm(utcisoptime(s)))
-    
+
     # difference in days
     day_diff = int(floor(diff / 86400))
 

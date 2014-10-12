@@ -32,88 +32,140 @@ from __future__ import with_statement
 import logging
 import sqlite3
 import bcrypt
+from pysmsd.lib.utils import Singleton
 
-def is_authorized(db_path, name, password):
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-    c.execute("SELECT * FROM `clients` WHERE `name`=?", (name,))
-    row = c.fetchone()
 
-    if row:
-        if bcrypt.hashpw(password, row['password']) == row['password']:
+class Db:
+    def __init__(self, db_path):
+        self.db_path = db_path
+        self.connection = None
+        self.cursor = None
+
+
+    def connect(self):
+        if self.connection is None:
+            self.connection = sqlite3.connect(self.db_path)
+            self.connection.row_factory = sqlite3.Row
+            self.cursor = self.connection.cursor()
+
+
+    def get_connection(self):
+        self.connect()
+        return self.connection
+
+
+    def get_cursor(self):
+        self.connect()
+        return self.cursor
+
+
+    def close(self):
+        if self.cursor is not None:
+            self.cursor.close()
+
+        if self.connection is not None:
+            self.connection.close()
+
+
+    def is_authorized(self, name, password):
+        self.connect()
+        self.cursor.execute("SELECT * FROM `clients` WHERE `name`=?", (name,))
+        row = self.cursor.fetchone()
+
+        if row:
+            if bcrypt.hashpw(password, row['password']) == row['password']:
+                return row['id']
+        return None
+
+
+    def get_system_client(self):
+        self.connect()
+        self.cursor.execute("SELECT * FROM `clients` WHERE `name`='SYSTEM'")
+        row = self.cursor.fetchone()
+
+        if row:
+            return row
+        return None
+
+
+    def get_system_client_id(self):
+        row = self.get_system_client()
+        if row is not None:
             return row['id']
+        return None
 
-    return None
 
-def mark_messages(db_path, client_id, id_list):
-    seq = [(client_id, i) for i in id_list]
-    conn = sqlite3.connect(db_path)
-    c = conn.cursor()
-    c.executemany("UPDATE `in_messages` SET `marked_by`=?, `marked`=datetime('now'), `updated`=datetime('now') WHERE id=?", seq)
-    conn.commit() 
-    c.close()
+    def mark_in_messages(self, client_id, id_list):
+        self.connect()
+        seq = [(client_id, i) for i in id_list]
+        self.cursor.executemany("UPDATE `in_messages` SET `marked_by`=?, `marked`=datetime('now'), `updated`=datetime('now') WHERE id=?", seq)
+        self.connection.commit()
 
-def mark_message(db_path, client_id, id):
-    conn = sqlite3.connect(db_path)
-    c = conn.cursor()
-    c.execute("UPDATE `in_messages` SET `marked_by`=?, `marked`=datetime('now'), `updated`=datetime('now') WHERE id=?", (client_id, id))
-    conn.commit() 
-    c.close()
 
-def insert_in_message(db_path, m):
-    conn = sqlite3.connect(db_path)
-    c = conn.cursor()
-    c.execute("INSERT INTO `in_messages`(`number`, `text`, `length`, `coding`, `datetime`, `keyword`, `rest`, `created`, `updated`) VALUES(?,?,?,?,?,?,?, datetime('now'), datetime('now'))", (m['Number'], m['Text'], m['Length'], m['Coding'], m['Received'], m['Keyword'], m['Rest']))
-    conn.commit() 
-    rowid = c.lastrowid
-    c.close()
-    return rowid 
+    def mark_in_message(self, client_id, id):
+        self.connect()
+        self.cursor.execute("UPDATE `in_messages` SET `marked_by`=?, `marked`=datetime('now'), `updated`=datetime('now') WHERE id=?", (client_id, id))
+        self.connection.commit()
 
-def get_in_message(db_path, id):
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-    c.execute("SELECT * FROM `in_messages` WHERE `id`=?", (id,))
-    return c.fetchone()
 
-def get_in_messages(db_path, keyword=None, include_marked=False):
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-    if keyword:
-        if include_marked:
-            c.execute("SELECT * FROM `in_messages` WHERE `keyword`=? ORDER BY `datetime`", (keyword,))
+    def insert_in_message(self, m):
+        self.connect()
+        self.cursor.execute("INSERT INTO `in_messages`(`Number`, `Text`, `Length`, `Coding`, `Datetime`, `Keyword`, `Rest`, `created`, `updated`) VALUES(?,?,?,?,?,?,?, datetime('now'), datetime('now'))", (m['Number'], m['Text'], m['Length'], m['Coding'], m['Received'], m['Keyword'], m['Rest']))
+        self.connection.commit()
+        return self.cursor.lastrowid
+
+
+    def get_in_message(self, id):
+        self.connect()
+        self.cursor.execute("SELECT * FROM `in_messages` WHERE `id`=?", (id,))
+        return self.cursor.fetchone()
+
+
+
+    def get_in_messages(self, keyword=None, include_marked=False):
+        self.connect()
+        if keyword:
+            if include_marked:
+                self.cursor.execute("SELECT * FROM `in_messages` WHERE `keyword`=? ORDER BY `Datetime`", (keyword,))
+            else:
+                self.cursor.execute("SELECT * FROM `in_messages` WHERE `keyword`=? AND `marked` IS NULL ORDER BY `Datetime`", (keyword,))
         else:
-            c.execute("SELECT * FROM `in_messages` WHERE `keyword`=? AND `marked` IS NULL ORDER BY `datetime`", (keyword,))
-    else:
-        if include_marked:
-            c.execute("SELECT * FROM `in_messages` ORDER BY `datetime`")
-        else:
-            c.execute("SELECT * FROM `in_messages` WHERE `marked` IS NULL ORDER BY `datetime`")
-            
-    return c
+            if include_marked:
+                self.cursor.execute("SELECT * FROM `in_messages` ORDER BY `Datetime`")
+            else:
+                self.cursor.execute("SELECT * FROM `in_messages` WHERE `marked` IS NULL ORDER BY `Datetime`")
 
-def insert_out_message(db_path, m, client_id):
-    conn = sqlite3.connect(db_path)
-    c = conn.cursor()
-    c.execute("INSERT INTO `out_messages`(`number`, `text`, `length`, `queued_by`, `datetime`, `queued`, `sent`, `created`, `updated`) VALUES(?,?,?,?, datetime('now'), datetime('now'), datetime('now'), datetime('now'), datetime('now'))", (m['Number'], m['Text'], len(m['Text']), client_id))
-    conn.commit() 
-    rowid = c.lastrowid
-    c.close()
-    return rowid 
+        return self.cursor
 
-def get_out_message(db_path, id):
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-    c.execute("SELECT * FROM `out_messages` WHERE `id`=?", (id,))
-    return c.fetchone()
 
-def get_out_messages(db_path):
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-    c.execute("SELECT * FROM `out_messages` ORDER BY `datetime`")
-    return c
+    def insert_out_message(self, m, client_id):
+        self.connect()
+        self.cursor.execute("INSERT INTO `out_messages`(`Number`, `Text`, `Length`, `queued_by`, `queued`, `created`, `updated`) VALUES(?,?,?,?, datetime('now'), datetime('now'), datetime('now'))", (m['Number'], m['Text'], len(m['Text']), client_id))
+        self.connection.commit()
+        return self.cursor.lastrowid
+
+
+    def get_out_message(self, id):
+        self.connect()
+        self.cursor.execute("SELECT * FROM `out_messages` WHERE `id`=?", (id,))
+        return self.cursor.fetchone()
+
+
+    def get_out_messages(self):
+        self.connect()
+        self.cursor.execute("SELECT * FROM `out_messages` ORDER BY `created`, `Datetime`")
+        return self.cursor
+
+
+    def get_unsent_out_messages(self):
+        self.connect()
+        self.cursor.execute("SELECT * FROM `out_messages` WHERE `Datetime` IS NULL ORDER BY `queued`")
+        return self.cursor
+
+
+    def mark_out_message(self, id):
+        self.connect()
+        self.cursor.execute("UPDATE `out_messages` SET `Datetime`=datetime('now'), `updated`=datetime('now') WHERE id=?", (id,))
+        self.connection.commit()
+
 

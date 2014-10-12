@@ -38,6 +38,7 @@ import os
 import time
 import rfc822
 
+
 class Static(BaseController):
     def index(self, req):
         """ Handle GET and HEAD requests for static files. Directory requests are not allowed"""

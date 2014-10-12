@@ -20,6 +20,8 @@ CREATE TABLE `clients` (
 );
 -- password default is 'pysmsd'
 INSERT INTO `clients` (`id`, `name`, `password`, `created`, `updated`)
+    VALUES(0, 'SYSTEM', '$2a$12$X5HfXpRYLXaNUR6gOsfkaO4jNZopZBuSBoFHiSmoGMMoiikH69u2C', datetime('now'), datetime('now'));
+INSERT INTO `clients` (`id`, `name`, `password`, `created`, `updated`)
     VALUES(1, 'pysmsd_test', '$2a$12$X5HfXpRYLXaNUR6gOsfkaO4jNZopZBuSBoFHiSmoGMMoiikH69u2C', datetime('now'), datetime('now'));
 
 DROP TABLE IF EXISTS `in_messages`;
@@ -28,13 +30,13 @@ CREATE TABLE `in_messages` (
 
     -- basic text info --
     `number` varchar(32) NOT NULL,
-    `text` varchar(255) NOT NULL,
-    `length` integer NOT NULL,
-    `coding` varchar(32) DEFAULT 'Default_No_Compression',
-    `datetime` datetime NOT NULL, -- this is the received date
+    `Text` varchar(255) NOT NULL,
+    `Length` integer NOT NULL,
+    `Coding` varchar(32) DEFAULT 'Default_No_Compression',
+    `Datetime` datetime NOT NULL, -- this is the received date
 
-    `keyword` varchar(255) DEFAULT NULL,
-    `rest` varchar(255) DEFAULT NULL,
+    `Keyword` varchar(255) DEFAULT NULL,
+    `Rest` varchar(255) DEFAULT NULL,
 
     -- internal data --
     `marked` datetime DEFAULT NULL,
@@ -52,15 +54,14 @@ CREATE TABLE `out_messages` (
 
     -- basic text info --
     `number` varchar(32) NOT NULL,
-    `text` varchar(255) NOT NULL,
-    `length` integer NOT NULL,
-    `coding` varchar(32) DEFAULT NULL,
-    `datetime` datetime DEFAULT NULL, -- this will be the sent date
+    `Text` varchar(255) NOT NULL,
+    `Length` integer NOT NULL,
+    `Coding` varchar(32) DEFAULT NULL,
+    `Datetime` datetime DEFAULT NULL, -- this will be the sent date
 
     -- internal data --
     `queued` datetime DEFAULT NULL,
     `queued_by` integer NOT NULL, -- FK -> client.id
-    `sent` datetime DEFAULT NULL,
 
     `created` datetime NOT NULL,
     `updated` timestamp NOT NULL

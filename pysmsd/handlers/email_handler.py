@@ -32,15 +32,13 @@ import sys
 import logging
 from pysmsd.handlers import BaseSMSHandler
 
-from pysmsd import DB_PATH
-from pysmsd.db import db
-
 import smtplib
 from email.mime.text import MIMEText
 
+
 class Handler(BaseSMSHandler):
-    def handle(self, db_path, id):
-        m = db.get_in_message(db_path, id)
+    def handle(self, db, id):
+        m = db.get_in_message(id)
         logging.debug("in message: %s" % m['keyword'])
         if self.is_email(m['keyword']):
             frm = 'turunen@prometheus.hiit.fi'
@@ -66,7 +64,8 @@ class Handler(BaseSMSHandler):
                 return
 
             logging.debug("Sent")
-            
+
+
     def is_email(self, s):
         try:
             local, domain = s.rsplit('@', 1)
@@ -75,6 +74,7 @@ class Handler(BaseSMSHandler):
             return False
 
         return True
+
 
 if __name__ == '__main__':
     h = Handler()

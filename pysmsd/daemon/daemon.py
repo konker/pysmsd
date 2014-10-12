@@ -36,7 +36,7 @@ from threading import Thread
 
 import gammu
 from pysmsd.db import db
-from pysmsd.daemon.dispatcher import Dispatcher
+from pysmsd.daemon.dispatcher import Dispatcher, DispatcherException
 
 class Daemon(object):
     def __init__(self, db_path, gammu_config, poll_delay_secs,
@@ -45,10 +45,10 @@ class Daemon(object):
                  http_host='127.0.0.1', http_port=33380,
                  ssl_cert=None, ssl_key=None):
 
-        self.db_path = db_path
+        self.db = db.Db(db_path)
         self.poll_delay_secs = poll_delay_secs
         self.use_get_sms_status = use_get_sms_status
-        self.dispatcher = Dispatcher(self.db_path)
+        self.dispatcher = Dispatcher(self.db.db_path)
 
         self.enable_http = http
         self.cherrypy = cherrypy
@@ -71,44 +71,11 @@ class Daemon(object):
     def loop(self):
         try:
             while True:
-                '''
-                There are two approaches to fetching the incoming SMS messages, governed by use_get_sms_status.
-                Use the method that works with your hardware.
-                On some hardware, GetSMSStatus() wrongly reports the number of unread messages, so should not be used.
-                '''
-                if self.use_get_sms_status:
-                    status = self.state_machine.GetSMSStatus()
-                    if status['SIMUnRead'] > 0:
-                        x = status['SIMUsed']
-                        n = status['SIMUnRead']
-                        for i in range(x, x + n):
-                            self.fetch_message('SM', i)
-                                
-                    if status['PhoneUnRead'] > 0: 
-                        x = status['PhoneUsed']
-                        n = status['PhoneUnRead']
-                        for i in range(x, x + n):
-                            self.fetch_message('ME', i)
+                # Process incoming messages
+                self.process_in_messages()
 
-                else:
-                    for mem in self.inboxes.keys():
-                        i = 0
-                        while True:
-                            try:
-                                m = self.state_machine.GetSMS(self.inboxes[mem], i)
-                            except Exception as ex:
-                                # no more messages
-                                break
-                                
-                            if m:
-                                # process the message
-                                if m[0]['State'] == 'UnRead':
-                                    self.fetch_message(mem, i)
-                            else:
-                                # no more messages
-                                break
-
-                            i = i + 1
+                # Process outgoing messages
+                self.process_out_messages()
 
                 time.sleep(self.poll_delay_secs)
         except KeyboardInterrupt:
@@ -118,20 +85,85 @@ class Daemon(object):
             logging.exception(ex)
             self.stop()
 
+
+    def process_out_messages(self):
+        for row in  self.db.get_unsent_out_messages():
+            # create message struct
+            message = {
+                'Text': row['Text'],
+                'SMSC': {'Location': 1},
+                'Number': row['Number']
+            }
+            logging.debug(message)
+
+            try:
+                # send the message
+                self.state_machine.SendSMS(message)
+            except:
+                logging.exception(ex)
+                next
+
+            # update metadata
+            self.db.mark_out_message(row['id'])
+
+
+    def process_in_messages(self):
+        '''
+        There are two approaches to fetching the incoming SMS messages, governed by use_get_sms_status.
+        Use the method that works with your hardware.
+        On some hardware, GetSMSStatus() wrongly reports the number of unread messages, so should not be used.
+        '''
+        if self.use_get_sms_status:
+            status = self.state_machine.GetSMSStatus()
+            if status['SIMUnRead'] > 0:
+                x = status['SIMUsed']
+                n = status['SIMUnRead']
+                for i in range(x, x + n):
+                    self.fetch_message('SM', i)
+
+            if status['PhoneUnRead'] > 0:
+                x = status['PhoneUsed']
+                n = status['PhoneUnRead']
+                for i in range(x, x + n):
+                    self.fetch_message('ME', i)
+
+        else:
+            for mem in self.inboxes.keys():
+                i = 0
+                while True:
+                    try:
+                        m = self.state_machine.GetSMS(self.inboxes[mem], i)
+                    except Exception as ex:
+                        # no more messages
+                        break
+
+                    if m:
+                        # process the message
+                        if m[0]['State'] == 'UnRead':
+                            self.fetch_message(mem, i)
+                    else:
+                        # no more messages
+                        break
+
+                    i = i + 1
+
+
     def fetch_message(self, memory_type, i):
         # retrieve and format the message
-        m = self.state_machine.GetSMS(self.inboxes[memory_type], i)
+        message = self.state_machine.GetSMS(self.inboxes[memory_type], i)
         self.state_machine.DeleteSMS(self.inboxes[memory_type], i)
-        m = self.format_message(m)
+        message = self.format_message(message)
+        logging.debug(message)
 
         # add it to the database
-        id = db.insert_in_message(self.db_path, m)
+        id = self.db.insert_in_message(message)
 
         # dispatch to any loaded handlers
         try:
             self.dispatcher.in_message(id)
         except DispatcherException as e:
             logging.exception("Dispatcher failed")
+
 
     def format_message(self, raw):
         ret = {}
@@ -143,9 +175,11 @@ class Daemon(object):
         ret['Coding'] = raw[0]['Coding']
         return ret
 
+
     def _parse_keyword(self, text):
         (keyword, sep, rest) = text.strip().partition(' ')
         return keyword.lower(), rest
+
 
     def init_phone(self, gammu_config):
         try:
@@ -167,7 +201,7 @@ class Daemon(object):
                 if folder['Inbox']:
                     self.inboxes[folder['Memory']] = f
                 f = f + 1
-            
+
             logging.debug(self.inboxes)
 
         except KeyboardInterrupt:
@@ -177,16 +211,20 @@ class Daemon(object):
             logging.exception(ex)
             self.stop()
 
+
     def start_http(self):
         from pysmsd.http.wsgiserver import serve
 
-        args = self.db_path, self.state_machine, self.http_host, self.http_port, self.cherrypy, self.ssl_cert, self.ssl_key
-        self.http_thread = Thread(target=serve, args=args,
-                                  name='http-thread')
+        args = (self.db.db_path, self.state_machine, self.http_host, self.http_port,
+                self.cherrypy, self.ssl_cert, self.ssl_key)
+        self.http_thread = Thread(target=serve, args=args, name='http-thread')
         self.http_thread.setDaemon(True)
         self.http_thread.start()
 
+
     def stop(self):
         #[TODO: clean up code here? close db etc?]
+        self.db.close()
         logging.debug("Stopping")
         exit(-1)
+

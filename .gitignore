@@ -7,3 +7,4 @@ pysmsd/data/pysmsd.db
 *.pyc
 pysmsd/http/server.crt
 pysmsd/http/server.key
+pysmsd/handlers/enabled

@@ -55,8 +55,9 @@ class DBMiddleware(object):
         self.application = application
 
     def __call__(self, environ, start_response):
-        environ['pysmsd.db.path'] = self.path
+        environ['pysmsd.db'] = db.Db(self.path)
         return self.application(environ, start_response)
+
 
 class StateMachineMiddleware(object):
     def __init__(self, state_machine, application=None):
@@ -70,6 +71,7 @@ class StateMachineMiddleware(object):
         environ['pysmsd.state_machine'] = self.state_machine
         return self.application(environ, start_response)
 
+
 class AuthMiddleware(object):
     def __init__(self, application=None):
         self.application = application
@@ -82,7 +84,11 @@ class AuthMiddleware(object):
         req = Request(environ)
         req.charset = 'utf8'
 
-        client_id = db.is_authorized(environ['pysmsd.db.path'], req.params.get('name', ''), req.params.get('password', ''))
+        client_id = \
+            req.environ['pysmsd.db'].is_authorized(
+                                        req.params.get('name', ''),
+                                        req.params.get('password', ''))
+
         if client_id != None:
             environ['pysmsd.client.id'] = client_id
             environ['pysmsd.client.name'] = req.params.get('name')
@@ -101,7 +107,7 @@ class Router(object):
     def add_route(self, template, controller, action, args=None):
         regex = re.compile('%s$' % template)
         self.routes.append((regex, controller, action, args))
-    
+
     def serverside_redirect(self, controller, action, req):
         # load controller
         try:
@@ -110,7 +116,7 @@ class Router(object):
             logging.exception('wsgiserver: could not load controller.')
             logging.debug("\n" + '-' * 80)
             return HTTPNotFoundJSON('Could not load controller: %s' % e)(environ, start_response)
-            
+
         if controller:
             # get the action
             try:
@@ -165,7 +171,7 @@ class Router(object):
                 host_url += environ['HTTP_HOST']
             else:
                 host_url += environ['SERVER_NAME']
-                
+
                 if environ['wsgi.url_scheme'] == 'https':
                     if environ['SERVER_PORT'] != '443':
                         host_url += ':'+environ['SERVER_PORT']
@@ -186,7 +192,7 @@ class Router(object):
                 # interpolate any backreferences into controller, action and args 
                 controller = matches.expand(controller)
                 action = matches.expand(action)
-                
+
                 # add in named groups from the regex
                 req.urlvars = matches.groupdict()
 
@@ -209,7 +215,7 @@ class Router(object):
                     logging.exception('wsgiserver: could not load controller.')
                     logging.debug("\n" + '-' * 80)
                     return HTTPNotFoundJSON('Could not load controller: %s' % e)(environ, start_response)
-                    
+
                 if controller:
                     # get the action
                     try:
@@ -219,7 +225,11 @@ class Router(object):
                             try:
                                 # if auth is needed, validate
                                 if req.urlvars.get('auth', 'no') == 'yes':
-                                    client_id = db.is_authorized(req.environ['pysmsd.db.path'], req.params.get('name', ''), req.params.get('password', ''))
+                                    client_id = \
+                                        req.environ['pysmsd.db'].is_authorized(
+                                                        req.params.get('name', ''),
+                                                        req.params.get('password', ''))
+
                                     if client_id != None:
                                         req.environ['pysmsd.client.id'] = client_id
                                         req.environ['pysmsd.client.name'] = req.params.get('name')
@@ -227,10 +237,7 @@ class Router(object):
                                         return HTTPUnauthorizedJSON()(environ, start_response)
 
                                 # execute action and get response
-                                try:
-                                    res = action(req)
-                                except:
-                                    return HTTPInternalServerErrorJSON()(environ, start_response)
+                                res = action(req)
 
                                 if isinstance(res, basestring):
                                     if req.path_url[-4:] == 'json':
@@ -321,3 +328,4 @@ def serve(db_path, state_machine, host, port, cherrypy=True, ssl_cert=None, ssl_
             httpd.serve_forever()
         except KeyboardInterrupt:
             pass
+

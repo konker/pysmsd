@@ -2,8 +2,8 @@ Handlers for (currently) incoming messages live here.
 Handlers should live in their own module and implement something based on the following:
 
 class Handler:
-    def handle(self, id):
-        # ... handle message with id
+    def handle(self, db, id):
+        # ... handle message from database db with given message id
 
 print_handler.py has an example.
 

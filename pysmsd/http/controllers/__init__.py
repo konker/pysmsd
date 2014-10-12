@@ -42,22 +42,27 @@ from binascii import hexlify, unhexlify
 from pysmsd.lib import json
 from mako.lookup import TemplateLookup
 
+
 class BaseController(object):
     # basically ../templates relative to the controllers directory
     BASE_TEMPLATE_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), os.path.join('..', 'templates')))
 
+
     def __init__(self):
         self.lookup = TemplateLookup(directories=[BaseController.BASE_TEMPLATE_DIR], filesystem_checks=True, input_encoding='utf-8', output_encoding='utf-8', encoding_errors='replace', default_filters=['decode.utf8', 'h'])
 
+
     def load_view(self, view_name):
         return self.lookup.get_template(view_name)
-                    
+
+
     def _get_mime_type(self, filename):
         if filename.endswith('.xpi'):
             return 'application/x-xpinstall'
         type, encoding = mimetypes.guess_type(filename)
         return type or 'text/plain'
-    
+
+
     def _get_stat(self, path):
         mtime = os.stat(path).st_mtime
         size = os.stat(path).st_size
@@ -66,6 +71,4 @@ class BaseController(object):
     def _sanitize(self, s):
         '''esacpes html entities'''
         return cgi.escape(s)
-
-
 

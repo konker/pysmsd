@@ -1,5 +1,5 @@
 #
-# pysmsmd/handlers/__init__.py
+# pysmsd.handler.print_handler.py
 #
 # Copyright 2010 Helsinki Institute for Information Technology
 # and the authors.
@@ -28,11 +28,19 @@
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 
-class BaseSMSHandler(object):
+import logging
+
+from pysmsd.handlers import BaseSMSHandler
+
+
+class Handler(BaseSMSHandler):
     def __init__(self, db):
-        pass
+        self.system_client_id = db.get_system_client_id()
 
 
     def handle(self, db, id):
-        pass
+        if self.system_client_id is not None:
+            m = db.get_in_message(id)
+            db.insert_out_message(dict(Number=m['Number'], Text=m['Rest']),
+                                  self.system_client_id)
 

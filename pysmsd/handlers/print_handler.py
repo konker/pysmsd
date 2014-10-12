@@ -31,10 +31,9 @@
 import logging
 
 from pysmsd.handlers import BaseSMSHandler
-from pysmsd.db import db
 
 
 class Handler(BaseSMSHandler):
-    def handle(self, db_path, id):
-        m = db.get_in_message(db_path, id)
+    def handle(self, db, id):
+        m = db.get_in_message(id)
         logging.info(m)
