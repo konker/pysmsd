@@ -20,16 +20,16 @@ CREATE TABLE `clients` (
 );
 -- password default is 'pysmsd'
 INSERT INTO `clients` (`id`, `name`, `password`, `created`, `updated`)
-    VALUES(0, 'SYSTEM', '$2a$12$X5HfXpRYLXaNUR6gOsfkaO4jNZopZBuSBoFHiSmoGMMoiikH69u2C', datetime('now'), datetime('now'));
+    VALUES(0, 'SYSTEM', '$2a$12$n3.CY6LBnWDAEZY1oBDObeh8wCJXVd8qZMf/MKDg/7evA1VD1NENm', datetime('now'), datetime('now'));
 INSERT INTO `clients` (`id`, `name`, `password`, `created`, `updated`)
-    VALUES(1, 'pysmsd_test', '$2a$12$X5HfXpRYLXaNUR6gOsfkaO4jNZopZBuSBoFHiSmoGMMoiikH69u2C', datetime('now'), datetime('now'));
+    VALUES(1, 'pysmsd_test', '$2a$12$HvXCfmdI8Psg9nZ9mTM9I.IItctEFxYcw7V17bq90LzFrZlgkF3YW', datetime('now'), datetime('now'));
 
 DROP TABLE IF EXISTS `in_messages`;
 CREATE TABLE `in_messages` (
     `id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 
     -- basic text info --
-    `number` varchar(32) NOT NULL,
+    `Number` varchar(32) NOT NULL,
     `Text` varchar(255) NOT NULL,
     `Length` integer NOT NULL,
     `Coding` varchar(32) DEFAULT 'Default_No_Compression',
@@ -53,7 +53,7 @@ CREATE TABLE `out_messages` (
     `id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 
     -- basic text info --
-    `number` varchar(32) NOT NULL,
+    `Number` varchar(32) NOT NULL,
     `Text` varchar(255) NOT NULL,
     `Length` integer NOT NULL,
     `Coding` varchar(32) DEFAULT NULL,
