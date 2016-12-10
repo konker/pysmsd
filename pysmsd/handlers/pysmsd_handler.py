@@ -1,5 +1,5 @@
 #
-# pysmsd.handler.cultar_handler.py
+# pysmsd.handler.pysmsd_handler.py
 #
 # Copyright 2014 Helsinki Institute for Information Technology
 # and the authors.
@@ -42,36 +42,14 @@ class Handler(BaseSMSHandler):
     def handle(self, db, id):
         if self.system_client_id is not None:
             message = db.get_in_message(id)
-            if message['Keyword'].lower() == 'cultar':
+            if message['Keyword'].lower() == 'status':
                 if message['Number'] in AUTHORIZED_NUMBERS:
                     print("Processing keyword %s for %s" % (message['Keyword'].lower(), message['Number']))
                     self.process_command(db, message)
 
 
     def process_command(self, db, message):
-        tokens = message['Rest'].split(' ')
-        if len(tokens) < 2:
-            return
-
-        try:
-            if tokens[0].lower() == 'status':
-                ret = subprocess.check_output(["/bin/systemctl", "status", "mloma-server-%s.service" % tokens[1].upper()])
-
-            elif tokens[0].lower() == 'stop':
-                ret = subprocess.check_output(["/bin/systemctl", "stop", "mloma-server-%s.service" % tokens[1].upper()])
-
-            elif tokens[0].lower() == 'start':
-                ret = subprocess.check_output(["/bin/systemctl", "start", "mloma-server-%s.service" % tokens[1].upper()])
-
-            elif tokens[0].lower() == 'restart':
-                ret = subprocess.check_output(["/bin/systemctl", "restart", "mloma-server-%s.service" % tokens[1].upper()])
-
-            else:
-                ret = "unknown command: %s" % tokens[1]
-
-        except subprocess.CalledProcessError as ex:
-            ret = "mloma-server-%s.service is DOWN" % tokens[1].upper()
-
+        ret = subprocess.check_output(["/bin/systemctl", "status", "pysmsd.service"])
 
         if self.system_client_id is not None:
             db.insert_out_message(dict(Number=message['Number'], Text=ret.decode('utf-8')),

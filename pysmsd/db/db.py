@@ -75,7 +75,7 @@ class Db:
         row = self.cursor.fetchone()
 
         if row:
-            if bcrypt.hashpw(password, row['password']) == row['password']:
+            if bcrypt.hashpw(password.encode('utf-8'), row['password'].encode('utf-8')) == row['password'].encode('utf-8'):
                 return row['id']
         return None
 

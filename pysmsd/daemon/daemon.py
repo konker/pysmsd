@@ -100,7 +100,7 @@ class Daemon(object):
             try:
                 # send the message
                 self.state_machine.SendSMS(message)
-            except:
+            except Exception as ex:
                 logging.exception(ex)
                 next
 
